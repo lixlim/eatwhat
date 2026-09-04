@@ -1,42 +1,55 @@
 import { z } from "zod";
+import { registry } from "../openapi-registry";
 
-const ConfidenceSchema = z.enum(["low", "medium", "high"]);
+export const ConfidenceSchema = registry.register(
+  "Confidence",
+  z.enum(["low", "medium", "high"])
+);
 
-const RangeSchema = z.object({
-  low: z.number(),
-  high: z.number(),
-});
+export const RangeSchema = registry.register(
+  "Range",
+  z.object({
+    low: z.number(),
+    high: z.number(),
+  })
+);
 
-const MealComponentSchema = z.object({
-  name: z.string(),
-  estimated_grams_low: z.number().nullable(),
-  estimated_grams_high: z.number().nullable(),
-  confidence: ConfidenceSchema,
-});
+export const MealComponentSchema = registry.register(
+  "MealComponent",
+  z.object({
+    name: z.string(),
+    estimated_grams_low: z.number().nullable(),
+    estimated_grams_high: z.number().nullable(),
+    confidence: ConfidenceSchema,
+  })
+);
 
-export const MealAnalysisSchema = z.object({
-  dish_name: z.string(),
-  dish_name_local: z.string().nullable(),
+export const MealAnalysisSchema = registry.register(
+  "MealAnalysis",
+  z.object({
+    dish_name: z.string(),
+    dish_name_local: z.string().nullable(),
 
-  components: z.array(MealComponentSchema),
+    components: z.array(MealComponentSchema),
 
-  nutrition: z.object({
-    calories_kcal: RangeSchema,
-    protein_g: RangeSchema,
-    carbs_g: RangeSchema,
-    fat_g: RangeSchema,
-    fibre_g: RangeSchema,
-    sodium_mg: RangeSchema,
-  }),
+    nutrition: z.object({
+      calories_kcal: RangeSchema,
+      protein_g: RangeSchema,
+      carbs_g: RangeSchema,
+      fat_g: RangeSchema,
+      fibre_g: RangeSchema,
+      sodium_mg: RangeSchema,
+    }),
 
-  overall_confidence: ConfidenceSchema,
+    overall_confidence: ConfidenceSchema,
 
-  uncertainties: z.array(z.string()),
+    uncertainties: z.array(z.string()),
 
-  interpretation: z.string(),
+    interpretation: z.string(),
 
-  disclaimer: z.string(),
-});
+    disclaimer: z.string(),
+  })
+);
 
 export type Confidence = z.infer<typeof ConfidenceSchema>;
 export type Range = z.infer<typeof RangeSchema>;

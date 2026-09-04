@@ -1,48 +1,52 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { foodAnalyzerService } from "../services/food-analyzer";
 import { nutritionService } from "../services/nutrition-service";
+import { registry, ErrorSchema } from "../openapi-registry";
+import { NutritionRecordSchema, NutritionSummarySchema } from "../models/nutrition";
 
 const router = Router();
 
-/**
- * @openapi
- * /api/food/analyze:
- *   post:
- *     summary: Analyze a food image
- *     description: Accepts an image and returns nutritional analysis
- *     tags: [Food]
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               image:
- *                 type: string
- *                 format: binary
- *             required: [image]
- *     responses:
- *       200:
- *         description: Nutrition analysis of the image
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 data: { $ref: '#/components/schemas/NutritionRecord' }
- *       400:
- *         description: No image file provided
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/Error' }
- *       500:
- *         description: Analysis failed
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/Error' }
- */
+registry.registerPath({
+  method: "post",
+  path: "/api/food/analyze",
+  summary: "Analyze a food image",
+  description: "Accepts an image and returns nutritional analysis",
+  tags: ["Food"],
+  request: {
+    body: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: z.object({
+            image: z.string().openapi({ format: "binary" }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Nutrition analysis of the image",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean().openapi({ example: true }),
+            data: NutritionRecordSchema,
+          }),
+        },
+      },
+    },
+    400: {
+      description: "No image file provided",
+      content: { "application/json": { schema: ErrorSchema } },
+    },
+    500: {
+      description: "Analysis failed",
+      content: { "application/json": { schema: ErrorSchema } },
+    },
+  },
+});
 router.post("/analyze", async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -76,26 +80,26 @@ router.post("/analyze", async (req: Request, res: Response) => {
   }
 });
 
-/**
- * @openapi
- * /api/food/records:
- *   get:
- *     summary: Get all analyzed food records
- *     tags: [Food]
- *     responses:
- *       200:
- *         description: List of all food records
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 data:
- *                   type: array
- *                   items: { $ref: '#/components/schemas/NutritionRecord' }
- *                 count: { type: number }
- */
+registry.registerPath({
+  method: "get",
+  path: "/api/food/records",
+  summary: "Get all analyzed food records",
+  tags: ["Food"],
+  responses: {
+    200: {
+      description: "List of all food records",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean().openapi({ example: true }),
+            data: z.array(NutritionRecordSchema),
+            count: z.number(),
+          }),
+        },
+      },
+    },
+  },
+});
 router.get("/records", (req: Request, res: Response) => {
   const records = nutritionService.getAllRecords();
   res.json({
@@ -105,23 +109,25 @@ router.get("/records", (req: Request, res: Response) => {
   });
 });
 
-/**
- * @openapi
- * /api/food/summary:
- *   get:
- *     summary: Get summary of all analyzed foods
- *     tags: [Food]
- *     responses:
- *       200:
- *         description: Aggregated nutrition summary
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 data: { $ref: '#/components/schemas/NutritionSummary' }
- */
+registry.registerPath({
+  method: "get",
+  path: "/api/food/summary",
+  summary: "Get summary of all analyzed foods",
+  tags: ["Food"],
+  responses: {
+    200: {
+      description: "Aggregated nutrition summary",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean().openapi({ example: true }),
+            data: NutritionSummarySchema,
+          }),
+        },
+      },
+    },
+  },
+});
 router.get("/summary", (req: Request, res: Response) => {
   const summary = nutritionService.getSummary();
   res.json({
@@ -130,33 +136,32 @@ router.get("/summary", (req: Request, res: Response) => {
   });
 });
 
-/**
- * @openapi
- * /api/food/records/{id}:
- *   get:
- *     summary: Get a specific food record by ID
- *     tags: [Food]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: The matching food record
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 data: { $ref: '#/components/schemas/NutritionRecord' }
- *       404:
- *         description: Record not found
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/Error' }
- */
+registry.registerPath({
+  method: "get",
+  path: "/api/food/records/{id}",
+  summary: "Get a specific food record by ID",
+  tags: ["Food"],
+  request: {
+    params: z.object({ id: z.string() }),
+  },
+  responses: {
+    200: {
+      description: "The matching food record",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean().openapi({ example: true }),
+            data: NutritionRecordSchema,
+          }),
+        },
+      },
+    },
+    404: {
+      description: "Record not found",
+      content: { "application/json": { schema: ErrorSchema } },
+    },
+  },
+});
 router.get("/records/:id", (req: Request, res: Response) => {
   const record = nutritionService.getRecord(req.params.id);
 
@@ -174,33 +179,32 @@ router.get("/records/:id", (req: Request, res: Response) => {
   });
 });
 
-/**
- * @openapi
- * /api/food/records/{id}:
- *   delete:
- *     summary: Delete a food record
- *     tags: [Food]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Record deleted
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean, example: true }
- *                 message: { type: string }
- *       404:
- *         description: Record not found
- *         content:
- *           application/json:
- *             schema: { $ref: '#/components/schemas/Error' }
- */
+registry.registerPath({
+  method: "delete",
+  path: "/api/food/records/{id}",
+  summary: "Delete a food record",
+  tags: ["Food"],
+  request: {
+    params: z.object({ id: z.string() }),
+  },
+  responses: {
+    200: {
+      description: "Record deleted",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean().openapi({ example: true }),
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    404: {
+      description: "Record not found",
+      content: { "application/json": { schema: ErrorSchema } },
+    },
+  },
+});
 router.delete("/records/:id", (req: Request, res: Response) => {
   const deleted = nutritionService.deleteRecord(req.params.id);
 

@@ -9,8 +9,9 @@ export async function analyzeImageNutrition(imageBuffer: Buffer): Promise<string
   const base64Image = imageBuffer.toString("base64");
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    max_tokens: 1024,
+    model: "gpt-5.6-terra",
+  
+    max_completion_tokens: 2000,
     messages: [
       {
         role: "user",
@@ -29,7 +30,7 @@ export async function analyzeImageNutrition(imageBuffer: Buffer): Promise<string
       },
     ],
   });
-
+  console.log(response);
   const responseText = response.choices[0]?.message?.content;
   if (!responseText) {
     throw new Error("Unexpected response format from OpenAI");
