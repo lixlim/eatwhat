@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>EatWhat</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <span class="logo">🍜 EatWhat</span>
+    </header>
+
+    <main id="view-root">
+
+      <!-- Landing view -->
+      <section id="view-landing" class="view">
+        <div class="landing">
+          <div class="landing-emoji" aria-hidden="true">🍽️</div>
+          <h1 class="brand">EatWhat</h1>
+          <p class="tagline">Snap your meal. Know what's in it.</p>
+
+          <div class="landing-actions">
+            <button id="btn-take-photo" class="btn btn-primary">
+              <span class="btn-icon">📷</span> Take photo
+            </button>
+            <button id="btn-upload-photo" class="btn btn-secondary">
+              Upload photo
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Preview view -->
+      <section id="view-preview" class="view" hidden>
+        <div class="preview-card">
+          <img id="preview-image" class="preview-image" alt="Selected meal" />
+          <button id="btn-analyse" class="btn btn-primary btn-full">Analyse meal</button>
+          <button id="btn-pick-different" class="btn btn-ghost btn-full">Choose a different photo</button>
+        </div>
+      </section>
+
+      <!-- Loading view -->
+      <section id="view-loading" class="view" hidden>
+        <div class="preview-card">
+          <img id="loading-image" class="preview-image preview-image--dim" alt="Selected meal" />
+          <div class="loading-indicator">
+            <span class="spinner" aria-hidden="true"></span>
+            <p class="loading-text">Figuring out what you're eating&hellip;</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Result view -->
+      <section id="view-result" class="view" hidden>
+        <div class="result">
+          <img id="result-image" class="result-image" alt="Analyzed meal" />
+
+          <div class="card result-header-card">
+            <div class="result-title-row">
+              <h2 id="result-dish-name" class="dish-name"></h2>
+              <span id="result-confidence" class="confidence-pill"></span>
+            </div>
+            <p id="result-dish-local" class="dish-local"></p>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Estimated components</h3>
+            <ul id="result-components" class="component-list"></ul>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Estimated nutrition</h3>
+            <div id="result-nutrition" class="nutrition-grid"></div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">What this means</h3>
+            <p id="result-interpretation" class="interpretation-text"></p>
+          </div>
+
+          <div class="card card-muted">
+            <h3 class="card-title">Good to know</h3>
+            <ul id="result-uncertainties" class="uncertainty-list"></ul>
+            <p id="result-disclaimer" class="disclaimer-text"></p>
+          </div>
+
+          <button id="btn-scan-another" class="btn btn-primary btn-full">Scan another meal</button>
+        </div>
+      </section>
+
+      <!-- Error view -->
+      <section id="view-error" class="view" hidden>
+        <div class="preview-card">
+          <img id="error-image" class="preview-image preview-image--dim" alt="Selected meal" />
+          <div class="error-box">
+            <p class="error-emoji" aria-hidden="true">😕</p>
+            <p class="error-title">We couldn't analyse that meal</p>
+            <p id="error-message" class="error-message">Something went wrong. Please try again.</p>
+          </div>
+          <button id="btn-retry" class="btn btn-primary btn-full">Try again</button>
+          <button id="btn-error-reset" class="btn btn-ghost btn-full">Scan another meal</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <input type="file" id="file-input-camera" accept="image/*" capture="environment" hidden />
+  <input type="file" id="file-input-upload" accept="image/*" hidden />
+
+  <script src="/app.js"></script>
+</body>
+</html>

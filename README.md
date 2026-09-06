@@ -1,10 +1,11 @@
-# Food Nutrition Analyzer POC
+# Food Nutrition Analyzer POC (EatWhat)
 
-A simple backend API that accepts food images and uses OpenAI's Vision API to analyze their nutritional value.
+A simple app that accepts food images and uses OpenAI's Vision API to analyze their nutritional value, with a mobile-first frontend ("EatWhat") served from the same Express server.
 
 ## Features
 
 - 📸 Image upload and analysis using OpenAI Vision API
+- 📱 Mobile-first frontend for taking/uploading a meal photo and viewing the analysis
 - 📊 Structured nutritional data extraction (calories, protein, carbs, fat, fiber)
 - 💾 In-memory record storage with summaries
 - ✅ Input validation with Zod
@@ -56,6 +57,15 @@ A simple backend API that accepts food images and uses OpenAI's Vision API to an
    ```
 
 Server will start on `http://localhost:3000`
+
+## Frontend
+
+There are two frontends, both POCs against the same backend:
+
+- **`public/`** — a static web page (served directly by this Express server, no build step) for a quick browser preview. Start the backend (`npm run dev`) and open `http://localhost:3000`.
+- **`mobile/`** — the actual native app ("EatWhat"), built with Expo/React Native, installed and run through Expo Go on a real phone. See **[mobile/README.md](mobile/README.md)** for setup and run instructions.
+
+Both post the selected image to `POST /api/food/analyze` and render the returned analysis — no login, history, or database involved, matching the POC scope.
 
 ## API Endpoints
 
@@ -150,6 +160,21 @@ curl -X DELETE http://localhost:3000/api/food/records/{id}
 ## Project Structure
 
 ```
+mobile/                         # Native app (Expo/React Native) — see mobile/README.md
+├── App.tsx                     # State machine wiring the screens together
+└── src/
+    ├── screens/                 # Landing/Preview/Loading/Result/Error screens
+    ├── components/              # Button, Card
+    ├── api.ts                   # Calls the backend's /api/food/analyze
+    ├── config.ts                # Backend base URL (edit for your network)
+    ├── types.ts                 # Mirrors the backend's MealAnalysis shape
+    └── theme.ts                 # Shared colors/spacing
+
+public/                         # Static web preview, served by app.ts
+├── index.html                  # Frontend markup (landing/preview/loading/result/error states)
+├── styles.css                  # Mobile-first styling
+└── app.js                      # Capture/upload, API call, state rendering
+
 src/
 ├── api/
 │   └── food.controller.ts       # API routes & handlers
@@ -163,7 +188,7 @@ src/
 └── models/
     └── nutrition.ts            # TypeScript interfaces
 
-app.ts                          # Express app setup
+app.ts                          # Express app setup (serves public/ as static files)
 ```
 
 ## How It Works
