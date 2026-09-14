@@ -13,6 +13,7 @@ export interface MealComponent {
 }
 
 export interface MealAnalysis {
+  id: string;
   dish_name: string;
   dish_name_local: string | null;
   components: MealComponent[];

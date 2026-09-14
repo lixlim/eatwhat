@@ -4,6 +4,7 @@ import { foodAnalyzerService } from "../services/food-analyzer";
 import { nutritionService } from "../services/nutrition-service";
 import { registry, ErrorSchema } from "../openapi-registry";
 import { NutritionRecordSchema, NutritionSummarySchema } from "../models/nutrition";
+import { MealComponentSchema } from "../ai/schemas";
 
 const router = Router();
 
@@ -164,6 +165,73 @@ registry.registerPath({
 });
 router.get("/records/:id", (req: Request, res: Response) => {
   const record = nutritionService.getRecord(req.params.id);
+
+  if (!record) {
+    res.status(404).json({
+      success: false,
+      error: "Record not found",
+    });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: record,
+  });
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/food/records/{id}/components",
+  summary: "Amend, add, or remove the detected meal components on a record",
+  description:
+    "Replaces the components list for a record. Nutrition values are not affected and cannot be set through this endpoint.",
+  tags: ["Food"],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z.object({ components: z.array(MealComponentSchema) }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "The record with its updated components",
+      content: {
+        "application/json": {
+          schema: z.object({
+            success: z.boolean().openapi({ example: true }),
+            data: NutritionRecordSchema,
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Invalid components payload",
+      content: { "application/json": { schema: ErrorSchema } },
+    },
+    404: {
+      description: "Record not found",
+      content: { "application/json": { schema: ErrorSchema } },
+    },
+  },
+});
+router.patch("/records/:id/components", (req: Request, res: Response) => {
+  const parsed = z.object({ components: z.array(MealComponentSchema) }).safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      success: false,
+      error: parsed.error.issues.map((issue) => issue.message).join("; "),
+    });
+    return;
+  }
+
+  const record = nutritionService.updateComponents(req.params.id, parsed.data.components);
 
   if (!record) {
     res.status(404).json({

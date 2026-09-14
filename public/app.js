@@ -1,5 +1,6 @@
 (() => {
   const ANALYZE_ENDPOINT = "/api/food/analyze";
+  const recordComponentsEndpoint = (id) => `/api/food/records/${encodeURIComponent(id)}/components`;
 
   const views = {
     landing: document.getElementById("view-landing"),
@@ -28,6 +29,9 @@
 
   let selectedFile = null;
   let previewObjectUrl = null;
+  let currentRecordId = null;
+  let currentComponents = [];
+  let saveStatusTimeout = null;
 
   function showView(name) {
     Object.entries(views).forEach(([key, el]) => {
@@ -57,6 +61,8 @@
 
   function resetFlow() {
     selectedFile = null;
+    currentRecordId = null;
+    currentComponents = [];
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
       previewObjectUrl = null;
@@ -71,13 +77,156 @@
     return `${range.low}–${range.high} ${unit}`;
   }
 
-  function formatPortion(component) {
-    const low = component.estimated_grams_low;
-    const high = component.estimated_grams_high;
-    if (low == null && high == null) return "Amount unclear";
-    if (low != null && high != null) return `${low}–${high}g`;
-    const only = low != null ? low : high;
-    return `~${only}g`;
+  function parseGrams(value) {
+    if (value === "" || value == null) return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  }
+
+  function renderComponents() {
+    const componentsEl = document.getElementById("result-components");
+    componentsEl.innerHTML = "";
+
+    currentComponents.forEach((component, index) => {
+      const row = document.createElement("div");
+      row.className = "component-row";
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "component-name-input";
+      nameInput.value = component.name;
+      nameInput.setAttribute("aria-label", "Component name");
+      nameInput.addEventListener("change", (e) => {
+        const trimmed = e.target.value.trim();
+        if (!trimmed) {
+          e.target.value = currentComponents[index].name;
+          return;
+        }
+        currentComponents[index].name = trimmed;
+        saveComponents();
+      });
+
+      const portionGroup = document.createElement("div");
+      portionGroup.className = "component-portion-group";
+
+      const lowInput = document.createElement("input");
+      lowInput.type = "number";
+      lowInput.min = "0";
+      lowInput.className = "component-portion-input";
+      lowInput.setAttribute("aria-label", "Estimated grams, low end");
+      lowInput.value = component.estimated_grams_low ?? "";
+      lowInput.addEventListener("change", (e) => {
+        currentComponents[index].estimated_grams_low = parseGrams(e.target.value);
+        saveComponents();
+      });
+
+      const highInput = document.createElement("input");
+      highInput.type = "number";
+      highInput.min = "0";
+      highInput.className = "component-portion-input";
+      highInput.setAttribute("aria-label", "Estimated grams, high end");
+      highInput.value = component.estimated_grams_high ?? "";
+      highInput.addEventListener("change", (e) => {
+        currentComponents[index].estimated_grams_high = parseGrams(e.target.value);
+        saveComponents();
+      });
+
+      portionGroup.appendChild(lowInput);
+      portionGroup.appendChild(document.createTextNode("–"));
+      portionGroup.appendChild(highInput);
+      portionGroup.appendChild(document.createTextNode("g"));
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "component-remove-btn";
+      removeBtn.textContent = "×";
+      removeBtn.setAttribute("aria-label", `Remove ${component.name}`);
+      removeBtn.addEventListener("click", () => {
+        currentComponents.splice(index, 1);
+        renderComponents();
+        saveComponents();
+      });
+
+      row.appendChild(nameInput);
+      row.appendChild(portionGroup);
+      row.appendChild(removeBtn);
+      componentsEl.appendChild(row);
+    });
+
+    const addRow = document.createElement("div");
+    addRow.className = "component-add-row";
+
+    const addNameInput = document.createElement("input");
+    addNameInput.type = "text";
+    addNameInput.className = "component-name-input";
+    addNameInput.placeholder = "Add a component…";
+    addNameInput.setAttribute("aria-label", "New component name");
+
+    const addLowInput = document.createElement("input");
+    addLowInput.type = "number";
+    addLowInput.min = "0";
+    addLowInput.className = "component-portion-input";
+    addLowInput.placeholder = "g";
+    addLowInput.setAttribute("aria-label", "New component estimated grams, low end");
+
+    const addHighInput = document.createElement("input");
+    addHighInput.type = "number";
+    addHighInput.min = "0";
+    addHighInput.className = "component-portion-input";
+    addHighInput.placeholder = "g";
+    addHighInput.setAttribute("aria-label", "New component estimated grams, high end");
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "component-add-btn";
+    addBtn.textContent = "+";
+    addBtn.setAttribute("aria-label", "Add component");
+    addBtn.addEventListener("click", () => {
+      const name = addNameInput.value.trim();
+      if (!name) return;
+      currentComponents.push({
+        name,
+        estimated_grams_low: parseGrams(addLowInput.value),
+        estimated_grams_high: parseGrams(addHighInput.value),
+        confidence: "high",
+      });
+      renderComponents();
+      saveComponents();
+    });
+
+    addRow.appendChild(addNameInput);
+    addRow.appendChild(addLowInput);
+    addRow.appendChild(addHighInput);
+    addRow.appendChild(addBtn);
+    componentsEl.appendChild(addRow);
+  }
+
+  async function saveComponents() {
+    const statusEl = document.getElementById("components-save-status");
+    if (!currentRecordId) return;
+
+    statusEl.textContent = "Saving…";
+    try {
+      const response = await fetch(recordComponentsEndpoint(currentRecordId), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ components: currentComponents }),
+      });
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok || !body || body.success === false) {
+        throw new Error((body && body.error) || "Couldn't save changes");
+      }
+
+      statusEl.textContent = "Saved";
+    } catch (err) {
+      statusEl.textContent = "Couldn't save — check your connection";
+    } finally {
+      clearTimeout(saveStatusTimeout);
+      saveStatusTimeout = setTimeout(() => {
+        statusEl.textContent = "";
+      }, 2000);
+    }
   }
 
   function renderResult(data) {
@@ -95,20 +244,9 @@
     const confidenceEl = document.getElementById("result-confidence");
     confidenceEl.textContent = `${capitalize(data.overall_confidence)} confidence`;
 
-    const componentsEl = document.getElementById("result-components");
-    componentsEl.innerHTML = "";
-    (data.components || []).forEach((component) => {
-      const li = document.createElement("li");
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "component-name";
-      nameSpan.textContent = component.name;
-      const portionSpan = document.createElement("span");
-      portionSpan.className = "component-portion";
-      portionSpan.textContent = formatPortion(component);
-      li.appendChild(nameSpan);
-      li.appendChild(portionSpan);
-      componentsEl.appendChild(li);
-    });
+    currentRecordId = data.id;
+    currentComponents = (data.components || []).map((c) => ({ ...c }));
+    renderComponents();
 
     const nutrition = data.nutrition || {};
     const nutritionItems = [

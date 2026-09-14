@@ -2,7 +2,8 @@ import React from "react";
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
-import { capitalize, formatPortion, formatRange } from "../format";
+import { ComponentEditor } from "../components/ComponentEditor";
+import { capitalize, formatRange } from "../format";
 import { colors, radius, spacing } from "../theme";
 import { MealAnalysis } from "../types";
 
@@ -38,12 +39,7 @@ export function ResultScreen({ imageUri, result, onScanAnother }: ResultScreenPr
 
       <Card>
         <Text style={styles.cardTitle}>Estimated components</Text>
-        {result.components.map((component, index) => (
-          <View key={`${component.name}-${index}`} style={styles.componentRow}>
-            <Text style={styles.componentName}>{component.name}</Text>
-            <Text style={styles.componentPortion}>{formatPortion(component)}</Text>
-          </View>
-        ))}
+        <ComponentEditor recordId={result.id} initialComponents={result.components} />
       </Card>
 
       <Card>
@@ -131,23 +127,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: spacing.md,
-  },
-  componentRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  componentName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-    flexShrink: 1,
-  },
-  componentPortion: {
-    fontSize: 13,
-    color: colors.textMuted,
   },
   nutritionGrid: {
     flexDirection: "row",

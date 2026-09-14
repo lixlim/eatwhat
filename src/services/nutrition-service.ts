@@ -1,5 +1,5 @@
 import { NutritionRecord, NutritionSummary } from "../models/nutrition";
-import { MealAnalysis, Range } from "../ai/schemas";
+import { MealAnalysis, MealComponent, Range } from "../ai/schemas";
 import { v4 as uuidv4 } from "uuid";
 
 export class NutritionService {
@@ -90,6 +90,15 @@ export class NutritionService {
       itemCount: records.length,
       avgConfidence,
     };
+  }
+
+  updateComponents(id: string, components: MealComponent[]): NutritionRecord | undefined {
+    const record = this.records.get(id);
+    if (!record) return undefined;
+
+    const updated: NutritionRecord = { ...record, components };
+    this.records.set(id, updated);
+    return updated;
   }
 
   deleteRecord(id: string): boolean {
