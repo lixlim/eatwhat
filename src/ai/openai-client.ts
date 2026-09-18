@@ -11,7 +11,7 @@ export async function analyzeImageNutrition(imageBuffer: Buffer): Promise<string
   const response = await openai.chat.completions.create({
     model: "gpt-5.6-terra",
   
-    max_completion_tokens: 2000,
+    max_completion_tokens: 4000,
     messages: [
       {
         role: "user",
@@ -30,6 +30,8 @@ export async function analyzeImageNutrition(imageBuffer: Buffer): Promise<string
       },
     ],
   });
+  console.log(response);
+
   const responseText = response.choices[0]?.message?.content;
   console.log(responseText);
   if (!responseText) {
