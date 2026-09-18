@@ -16,7 +16,7 @@ export function LandingScreen({ onTakePhoto, onUploadPhoto }: LandingScreenProps
       <Text style={styles.tagline}>Snap your meal. Know what's in it.</Text>
 
       <View style={styles.actions}>
-        <Button label="Take photo" icon="📷" onPress={onTakePhoto} variant="primary" />
+        <Button label="Take photo" onPress={onTakePhoto} variant="primary" />
         <Button label="Upload photo" onPress={onUploadPhoto} variant="secondary" style={styles.gap} />
       </View>
     </View>

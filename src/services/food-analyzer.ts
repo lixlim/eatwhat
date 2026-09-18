@@ -1,5 +1,11 @@
 import { analyzeImageNutrition } from "../ai/openai-client";
-import { MealAnalysisSchema, MealAnalysis } from "../ai/schemas";
+import {
+  MealAnalysisSchema,
+  RawMealAnalysisSchema,
+  MealAnalysis,
+  NutrientRanges,
+  NUTRIENT_KEYS,
+} from "../ai/schemas";
 
 export class FoodAnalyzerService {
   async analyzeFood(imageBuffer: Buffer): Promise<MealAnalysis> {
@@ -21,8 +27,29 @@ export class FoodAnalyzerService {
       const jsonStr = jsonMatch[0];
       parsedResponse = JSON.parse(jsonStr);
 
-      // Validate with schema
-      const validated = MealAnalysisSchema.parse(parsedResponse);
+      // Validate the model's own output (no top-level nutrition totals
+      // expected — see RawMealAnalysisSchema)
+      const rawValidated = RawMealAnalysisSchema.parse(parsedResponse);
+
+      // Every nutrition total is derived from the components, not estimated
+      // holistically by the model, so that each total always exactly matches
+      // the sum of its parts (low-to-low, high-to-high).
+      const nutrition = NUTRIENT_KEYS.reduce((totals, key) => {
+        totals[key] = rawValidated.components.reduce(
+          (sum, component) => ({
+            low: sum.low + component.nutrition[key].low,
+            high: sum.high + component.nutrition[key].high,
+          }),
+          { low: 0, high: 0 }
+        );
+        return totals;
+      }, {} as NutrientRanges);
+
+      // Re-validate the completed shape as a safety net
+      const validated = MealAnalysisSchema.parse({
+        ...rawValidated,
+        nutrition,
+      });
       console.log("Analysis validated successfully");
 
       return validated;

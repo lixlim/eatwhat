@@ -344,13 +344,13 @@ body {
 
 .component-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .component-name-input {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 9px 10px;
@@ -361,24 +361,70 @@ body {
   font-family: inherit;
 }
 
-.component-portion-group {
+.component-portion-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  white-space: nowrap;
+  gap: 6px;
 }
 
-.component-portion-input {
-  width: 52px;
+/* A single bordered control that groups two related inputs (quantity+unit,
+   or a low–high range) instead of each having its own border — fewer
+   separate boxes on screen at once. */
+.component-group-box {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 9px 6px;
-  font-size: 0.9rem;
-  text-align: center;
-  color: var(--color-text);
+  padding: 0 8px;
   background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.component-group-input {
+  border: none;
+  background: transparent;
+  padding: 9px 0;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  font-family: inherit;
+  min-width: 0;
+}
+
+.component-group-input:focus {
+  outline: none;
+}
+
+.component-group-input--narrow {
+  width: 40px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.component-group-input--wide {
+  flex: 1;
+  min-width: 0;
+  padding-left: 8px;
+  border-left: 1px solid var(--color-border);
+}
+
+.component-group-suffix {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.component-mode-select {
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 6px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
   font-family: inherit;
 }
 
@@ -395,26 +441,116 @@ body {
   cursor: pointer;
 }
 
-.component-add-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 4px;
-  border-top: 1px dashed var(--color-border);
+.component-nutrient-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.component-nutrient-chip {
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.component-nutrient-chip-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.component-nutrient-chip-value {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: 2px;
+}
+
+.component-add-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
   margin-top: 4px;
 }
 
-.component-add-btn {
+.component-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 4px;
+}
+
+.component-add-form-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.component-field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.component-nutrient-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.component-nutrient-input-label {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 64px;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.component-add-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.component-add-cancel-btn,
+.component-add-confirm-btn {
+  flex: 1;
   border: none;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.component-add-cancel-btn {
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.component-add-confirm-btn {
   background: var(--color-primary);
   color: var(--color-primary-contrast);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
 }
 
 .nutrition-grid {

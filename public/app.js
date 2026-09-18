@@ -2,6 +2,17 @@
   const ANALYZE_ENDPOINT = "/api/food/analyze";
   const recordComponentsEndpoint = (id) => `/api/food/records/${encodeURIComponent(id)}/components`;
 
+  // Same six nutrients, same order, used for both the dish-level totals and
+  // each component's own breakdown.
+  const NUTRIENT_FIELDS = [
+    { key: "calories_kcal", label: "Calories", shortLabel: "Cal", unit: "kcal" },
+    { key: "protein_g", label: "Protein", shortLabel: "Protein", unit: "g" },
+    { key: "carbs_g", label: "Carbs", shortLabel: "Carbs", unit: "g" },
+    { key: "fat_g", label: "Fat", shortLabel: "Fat", unit: "g" },
+    { key: "fibre_g", label: "Fibre", shortLabel: "Fibre", unit: "g" },
+    { key: "sodium_mg", label: "Sodium", shortLabel: "Sodium", unit: "mg" },
+  ];
+
   const views = {
     landing: document.getElementById("view-landing"),
     preview: document.getElementById("view-preview"),
@@ -31,6 +42,10 @@
   let previewObjectUrl = null;
   let currentRecordId = null;
   let currentComponents = [];
+  let currentComponentModes = [];
+  let newComponentMode = "unit";
+  let isAddFormOpen = false;
+  let addSectionEl = null;
   let saveStatusTimeout = null;
 
   function showView(name) {
@@ -63,6 +78,9 @@
     selectedFile = null;
     currentRecordId = null;
     currentComponents = [];
+    currentComponentModes = [];
+    newComponentMode = "unit";
+    isAddFormOpen = false;
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
       previewObjectUrl = null;
@@ -77,10 +95,125 @@
     return `${range.low}–${range.high} ${unit}`;
   }
 
-  function parseGrams(value) {
+  function parseNumber(value) {
     if (value === "" || value == null) return null;
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
+  }
+
+  function defaultModeFor(component) {
+    return component.quantity != null && component.unit ? "unit" : "grams";
+  }
+
+  function buildModeSelect(mode, label, onChange) {
+    const select = document.createElement("select");
+    select.className = "component-mode-select";
+    select.setAttribute("aria-label", label);
+    ["unit", "grams"].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value === "unit" ? "Unit" : "Grams";
+      select.appendChild(option);
+    });
+    select.value = mode;
+    select.addEventListener("change", (e) => onChange(e.target.value));
+    return select;
+  }
+
+  // A single bordered control that groups two related inputs (quantity+unit,
+  // or a low–high range) instead of each having its own border — fewer
+  // separate boxes on screen at once. `onCommit` receives the patch to merge
+  // into the underlying object whenever a field is edited.
+  function buildGroupBox(inputs, suffixText) {
+    const groupBox = document.createElement("div");
+    groupBox.className = "component-group-box";
+    inputs.forEach((input, i) => {
+      if (i > 0) groupBox.appendChild(document.createTextNode("–"));
+      groupBox.appendChild(input);
+    });
+    if (suffixText) {
+      const suffix = document.createElement("span");
+      suffix.className = "component-group-suffix";
+      suffix.textContent = suffixText;
+      groupBox.appendChild(suffix);
+    }
+    return groupBox;
+  }
+
+  // Builds either the quantity+unit inputs or the low–high gram inputs for one
+  // component row, depending on that row's current mode, grouped into a
+  // single bordered control.
+  function buildPortionFields(component, mode, labelSuffix, onCommit) {
+    if (mode === "unit") {
+      const quantityInput = document.createElement("input");
+      quantityInput.type = "number";
+      quantityInput.min = "0";
+      quantityInput.className = "component-group-input component-group-input--narrow";
+      quantityInput.setAttribute("aria-label", `Quantity${labelSuffix}`);
+      quantityInput.placeholder = "qty";
+      quantityInput.value = component.quantity ?? "";
+      quantityInput.addEventListener("change", (e) => {
+        onCommit({ quantity: parseNumber(e.target.value) });
+      });
+
+      const unitInput = document.createElement("input");
+      unitInput.type = "text";
+      unitInput.className = "component-group-input component-group-input--wide";
+      unitInput.placeholder = "unit (e.g. piece, bowl)";
+      unitInput.setAttribute("aria-label", `Unit${labelSuffix}`);
+      unitInput.value = component.unit ?? "";
+      unitInput.addEventListener("change", (e) => {
+        onCommit({ unit: e.target.value.trim() || null });
+      });
+
+      return buildGroupBox([quantityInput, unitInput]);
+    }
+
+    const lowInput = document.createElement("input");
+    lowInput.type = "number";
+    lowInput.min = "0";
+    lowInput.className = "component-group-input component-group-input--narrow";
+    lowInput.setAttribute("aria-label", `Estimated grams, low end${labelSuffix}`);
+    lowInput.placeholder = "low";
+    lowInput.value = component.estimated_grams_low ?? "";
+    lowInput.addEventListener("change", (e) => {
+      onCommit({ estimated_grams_low: parseNumber(e.target.value) });
+    });
+
+    const highInput = document.createElement("input");
+    highInput.type = "number";
+    highInput.min = "0";
+    highInput.className = "component-group-input component-group-input--narrow";
+    highInput.setAttribute("aria-label", `Estimated grams, high end${labelSuffix}`);
+    highInput.placeholder = "high";
+    highInput.value = component.estimated_grams_high ?? "";
+    highInput.addEventListener("change", (e) => {
+      onCommit({ estimated_grams_high: parseNumber(e.target.value) });
+    });
+
+    return buildGroupBox([lowInput, highInput], "g");
+  }
+
+  function buildNutrientGrid(component) {
+    const grid = document.createElement("div");
+    grid.className = "component-nutrient-grid";
+    NUTRIENT_FIELDS.forEach((field) => {
+      const chip = document.createElement("div");
+      chip.className = "component-nutrient-chip";
+
+      const labelEl = document.createElement("span");
+      labelEl.className = "component-nutrient-chip-label";
+      labelEl.textContent = field.shortLabel;
+
+      const valueEl = document.createElement("span");
+      valueEl.className = "component-nutrient-chip-value";
+      valueEl.textContent = formatRange(component.nutrition[field.key], field.unit);
+
+      chip.appendChild(labelEl);
+      chip.appendChild(valueEl);
+      grid.appendChild(chip);
+    });
+    return grid;
   }
 
   function renderComponents() {
@@ -106,35 +239,38 @@
         saveComponents();
       });
 
-      const portionGroup = document.createElement("div");
-      portionGroup.className = "component-portion-group";
+      const portionRow = document.createElement("div");
+      portionRow.className = "component-portion-row";
 
-      const lowInput = document.createElement("input");
-      lowInput.type = "number";
-      lowInput.min = "0";
-      lowInput.className = "component-portion-input";
-      lowInput.setAttribute("aria-label", "Estimated grams, low end");
-      lowInput.value = component.estimated_grams_low ?? "";
-      lowInput.addEventListener("change", (e) => {
-        currentComponents[index].estimated_grams_low = parseGrams(e.target.value);
+      const commitPatch = (patch) => {
+        currentComponents[index] = { ...currentComponents[index], ...patch };
         saveComponents();
-      });
+      };
 
-      const highInput = document.createElement("input");
-      highInput.type = "number";
-      highInput.min = "0";
-      highInput.className = "component-portion-input";
-      highInput.setAttribute("aria-label", "Estimated grams, high end");
-      highInput.value = component.estimated_grams_high ?? "";
-      highInput.addEventListener("change", (e) => {
-        currentComponents[index].estimated_grams_high = parseGrams(e.target.value);
-        saveComponents();
-      });
+      let portionFields = buildPortionFields(
+        component,
+        currentComponentModes[index],
+        ` for ${component.name || "component"}`,
+        commitPatch
+      );
+      portionRow.appendChild(portionFields);
 
-      portionGroup.appendChild(lowInput);
-      portionGroup.appendChild(document.createTextNode("–"));
-      portionGroup.appendChild(highInput);
-      portionGroup.appendChild(document.createTextNode("g"));
+      const modeSelect = buildModeSelect(
+        currentComponentModes[index],
+        `Quantity type for ${component.name || "component"}`,
+        (mode) => {
+          currentComponentModes[index] = mode;
+          const nextFields = buildPortionFields(
+            currentComponents[index],
+            mode,
+            ` for ${currentComponents[index].name || "component"}`,
+            commitPatch
+          );
+          portionRow.replaceChild(nextFields, portionFields);
+          portionFields = nextFields;
+        }
+      );
+      portionRow.appendChild(modeSelect);
 
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
@@ -143,62 +279,177 @@
       removeBtn.setAttribute("aria-label", `Remove ${component.name}`);
       removeBtn.addEventListener("click", () => {
         currentComponents.splice(index, 1);
+        currentComponentModes.splice(index, 1);
         renderComponents();
         saveComponents();
       });
+      portionRow.appendChild(removeBtn);
 
       row.appendChild(nameInput);
-      row.appendChild(portionGroup);
-      row.appendChild(removeBtn);
+      row.appendChild(portionRow);
+      row.appendChild(buildNutrientGrid(component));
       componentsEl.appendChild(row);
     });
 
-    const addRow = document.createElement("div");
-    addRow.className = "component-add-row";
+    addSectionEl = document.createElement("div");
+    componentsEl.appendChild(addSectionEl);
+    renderAddSection();
+  }
+
+  function renderAddSection() {
+    addSectionEl.innerHTML = "";
+
+    if (!isAddFormOpen) {
+      const trigger = document.createElement("button");
+      trigger.type = "button";
+      trigger.className = "component-add-trigger";
+      trigger.textContent = "+ Add a component";
+      trigger.addEventListener("click", () => {
+        isAddFormOpen = true;
+        renderAddSection();
+      });
+      addSectionEl.appendChild(trigger);
+      return;
+    }
+
+    addSectionEl.appendChild(buildAddForm());
+  }
+
+  function buildAddForm() {
+    const form = document.createElement("div");
+    form.className = "component-add-form";
+
+    const title = document.createElement("div");
+    title.className = "component-add-form-title";
+    title.textContent = "New component";
+    form.appendChild(title);
 
     const addNameInput = document.createElement("input");
     addNameInput.type = "text";
     addNameInput.className = "component-name-input";
-    addNameInput.placeholder = "Add a component…";
+    addNameInput.placeholder = "Component name";
     addNameInput.setAttribute("aria-label", "New component name");
+    form.appendChild(addNameInput);
 
-    const addLowInput = document.createElement("input");
-    addLowInput.type = "number";
-    addLowInput.min = "0";
-    addLowInput.className = "component-portion-input";
-    addLowInput.placeholder = "g";
-    addLowInput.setAttribute("aria-label", "New component estimated grams, low end");
+    const portionLabel = document.createElement("div");
+    portionLabel.className = "component-field-label";
+    portionLabel.textContent = "Portion";
+    form.appendChild(portionLabel);
 
-    const addHighInput = document.createElement("input");
-    addHighInput.type = "number";
-    addHighInput.min = "0";
-    addHighInput.className = "component-portion-input";
-    addHighInput.placeholder = "g";
-    addHighInput.setAttribute("aria-label", "New component estimated grams, high end");
+    const portionRow = document.createElement("div");
+    portionRow.className = "component-portion-row";
 
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "component-add-btn";
-    addBtn.textContent = "+";
-    addBtn.setAttribute("aria-label", "Add component");
-    addBtn.addEventListener("click", () => {
+    const draftComponent = {
+      quantity: null,
+      unit: null,
+      estimated_grams_low: null,
+      estimated_grams_high: null,
+    };
+    const commitDraftPatch = (patch) => Object.assign(draftComponent, patch);
+
+    let portionFields = buildPortionFields(draftComponent, newComponentMode, " for new component", commitDraftPatch);
+    portionRow.appendChild(portionFields);
+
+    const modeSelect = buildModeSelect(newComponentMode, "New component quantity type", (mode) => {
+      newComponentMode = mode;
+      const nextFields = buildPortionFields(draftComponent, mode, " for new component", commitDraftPatch);
+      portionRow.replaceChild(nextFields, portionFields);
+      portionFields = nextFields;
+    });
+    portionRow.appendChild(modeSelect);
+    form.appendChild(portionRow);
+
+    const nutrientLabel = document.createElement("div");
+    nutrientLabel.className = "component-field-label";
+    nutrientLabel.textContent = "Nutrition (per component)";
+    form.appendChild(nutrientLabel);
+
+    const draftNutrition = {};
+    NUTRIENT_FIELDS.forEach((field) => {
+      draftNutrition[field.key] = { low: null, high: null };
+
+      const nutrientRow = document.createElement("div");
+      nutrientRow.className = "component-nutrient-input-row";
+
+      const label = document.createElement("span");
+      label.className = "component-nutrient-input-label";
+      label.textContent = field.label;
+      nutrientRow.appendChild(label);
+
+      const lowInput = document.createElement("input");
+      lowInput.type = "number";
+      lowInput.min = "0";
+      lowInput.className = "component-group-input component-group-input--narrow";
+      lowInput.placeholder = "low";
+      lowInput.setAttribute("aria-label", `${field.label}, low end for new component`);
+      lowInput.addEventListener("change", (e) => {
+        draftNutrition[field.key].low = parseNumber(e.target.value);
+      });
+
+      const highInput = document.createElement("input");
+      highInput.type = "number";
+      highInput.min = "0";
+      highInput.className = "component-group-input component-group-input--narrow";
+      highInput.placeholder = "high";
+      highInput.setAttribute("aria-label", `${field.label}, high end for new component`);
+      highInput.addEventListener("change", (e) => {
+        draftNutrition[field.key].high = parseNumber(e.target.value);
+      });
+
+      nutrientRow.appendChild(buildGroupBox([lowInput, highInput], field.unit));
+      form.appendChild(nutrientRow);
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "component-add-form-actions";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "component-add-cancel-btn";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", () => {
+      isAddFormOpen = false;
+      newComponentMode = "unit";
+      renderAddSection();
+    });
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "component-add-confirm-btn";
+    confirmBtn.textContent = "Add component";
+    confirmBtn.addEventListener("click", () => {
       const name = addNameInput.value.trim();
       if (!name) return;
+
+      const nutrition = {};
+      NUTRIENT_FIELDS.forEach((field) => {
+        nutrition[field.key] = {
+          low: draftNutrition[field.key].low ?? 0,
+          high: draftNutrition[field.key].high ?? 0,
+        };
+      });
+
       currentComponents.push({
         name,
-        estimated_grams_low: parseGrams(addLowInput.value),
-        estimated_grams_high: parseGrams(addHighInput.value),
+        quantity: draftComponent.quantity,
+        unit: draftComponent.unit,
+        estimated_grams_low: draftComponent.estimated_grams_low,
+        estimated_grams_high: draftComponent.estimated_grams_high,
+        nutrition,
         confidence: "high",
       });
+      currentComponentModes.push(newComponentMode);
+      newComponentMode = "unit";
+      isAddFormOpen = false;
       renderComponents();
       saveComponents();
     });
 
-    addRow.appendChild(addNameInput);
-    addRow.appendChild(addLowInput);
-    addRow.appendChild(addHighInput);
-    addRow.appendChild(addBtn);
-    componentsEl.appendChild(addRow);
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+    form.appendChild(actions);
+
+    return form;
   }
 
   async function saveComponents() {
@@ -246,28 +497,22 @@
 
     currentRecordId = data.id;
     currentComponents = (data.components || []).map((c) => ({ ...c }));
+    currentComponentModes = currentComponents.map(defaultModeFor);
+    isAddFormOpen = false;
     renderComponents();
 
     const nutrition = data.nutrition || {};
-    const nutritionItems = [
-      ["Calories", formatRange(nutrition.calories_kcal, "kcal")],
-      ["Protein", formatRange(nutrition.protein_g, "g")],
-      ["Carbs", formatRange(nutrition.carbs_g, "g")],
-      ["Fat", formatRange(nutrition.fat_g, "g")],
-      ["Fibre", formatRange(nutrition.fibre_g, "g")],
-      ["Sodium", formatRange(nutrition.sodium_mg, "mg")],
-    ];
     const nutritionEl = document.getElementById("result-nutrition");
     nutritionEl.innerHTML = "";
-    nutritionItems.forEach(([label, value]) => {
+    NUTRIENT_FIELDS.forEach((field) => {
       const item = document.createElement("div");
       item.className = "nutrition-item";
       const labelEl = document.createElement("span");
       labelEl.className = "nutrition-label";
-      labelEl.textContent = label;
+      labelEl.textContent = field.label;
       const valueEl = document.createElement("span");
       valueEl.className = "nutrition-value";
-      valueEl.textContent = value;
+      valueEl.textContent = formatRange(nutrition[field.key], field.unit);
       item.appendChild(labelEl);
       item.appendChild(valueEl);
       nutritionEl.appendChild(item);

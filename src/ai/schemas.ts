@@ -14,12 +14,52 @@ export const RangeSchema = registry.register(
   })
 );
 
+// Shared by the top-level `nutrition` totals and each component's own
+// nutrition breakdown — same six nutrients, same range shape, in both
+// places (see NUTRIENT_KEYS / food-analyzer.ts, which sums the latter into
+// the former).
+export const NutrientRangesSchema = registry.register(
+  "NutrientRanges",
+  z.object({
+    calories_kcal: RangeSchema,
+    protein_g: RangeSchema,
+    carbs_g: RangeSchema,
+    fat_g: RangeSchema,
+    fibre_g: RangeSchema,
+    sodium_mg: RangeSchema,
+  })
+);
+
+export const NUTRIENT_KEYS = [
+  "calories_kcal",
+  "protein_g",
+  "carbs_g",
+  "fat_g",
+  "fibre_g",
+  "sodium_mg",
+] as const;
+
 export const MealComponentSchema = registry.register(
   "MealComponent",
   z.object({
     name: z.string(),
+    // Human-friendly portion, e.g. quantity=2, unit="pieces" -> "2 pieces".
+    // unit is free text (not a fixed list) chosen by the model, already
+    // inflected for quantity and including any size descriptor, e.g.
+    // "large bowl". Grams remain the source of truth for nutrition math.
+    quantity: z.number().nullable(),
+    unit: z.string().max(40).nullable().openapi({
+      example: "piece",
+      description:
+        "Free-text human-friendly unit (e.g. piece, wing, clove, large bowl) — not a fixed list.",
+    }),
     estimated_grams_low: z.number().nullable(),
     estimated_grams_high: z.number().nullable(),
+    // Per-component nutrition contribution. Required (not nullable): the
+    // top-level `nutrition` totals are computed by summing these across
+    // components (see RawMealAnalysisSchema / food-analyzer.ts), so every
+    // component must carry real figures for the totals to be accurate.
+    nutrition: NutrientRangesSchema,
     confidence: ConfidenceSchema,
   })
 );
@@ -32,14 +72,7 @@ export const MealAnalysisSchema = registry.register(
 
     components: z.array(MealComponentSchema),
 
-    nutrition: z.object({
-      calories_kcal: RangeSchema,
-      protein_g: RangeSchema,
-      carbs_g: RangeSchema,
-      fat_g: RangeSchema,
-      fibre_g: RangeSchema,
-      sodium_mg: RangeSchema,
-    }),
+    nutrition: NutrientRangesSchema,
 
     overall_confidence: ConfidenceSchema,
 
@@ -51,7 +84,17 @@ export const MealAnalysisSchema = registry.register(
   })
 );
 
+// The shape the OpenAI response itself is validated against. It omits the
+// top-level `nutrition` entirely because the model is not asked for totals —
+// the prompt only has it estimate nutrition per component, and
+// food-analyzer.ts derives every total by summing those before validating
+// against the full MealAnalysisSchema (which still requires `nutrition` for
+// everything downstream: storage, the API response, both frontends).
+export const RawMealAnalysisSchema = MealAnalysisSchema.omit({ nutrition: true });
+
 export type Confidence = z.infer<typeof ConfidenceSchema>;
 export type Range = z.infer<typeof RangeSchema>;
+export type NutrientRanges = z.infer<typeof NutrientRangesSchema>;
+export type NutrientKey = (typeof NUTRIENT_KEYS)[number];
 export type MealComponent = z.infer<typeof MealComponentSchema>;
 export type MealAnalysis = z.infer<typeof MealAnalysisSchema>;

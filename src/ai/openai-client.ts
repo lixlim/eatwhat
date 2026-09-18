@@ -30,8 +30,8 @@ export async function analyzeImageNutrition(imageBuffer: Buffer): Promise<string
       },
     ],
   });
-  console.log(response);
   const responseText = response.choices[0]?.message?.content;
+  console.log(responseText);
   if (!responseText) {
     throw new Error("Unexpected response format from OpenAI");
   }

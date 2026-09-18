@@ -5,6 +5,6 @@
 //     (find it with `ipconfig getifaddr en0` on Mac, phone and computer must share Wi-Fi)
 //   - Android emulator: "http://10.0.2.2:3000"
 //   - iOS simulator: "http://localhost:3000"
-export const API_BASE_URL = "http://192.168.1.118:3000";
+export const API_BASE_URL = "http://192.168.0.66:3000";
 
 export const ANALYZE_ENDPOINT = `${API_BASE_URL}/api/food/analyze`;
