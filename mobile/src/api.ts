@@ -46,3 +46,37 @@ export async function updateComponents(
 
   return body.data as MealAnalysis;
 }
+
+export type EditableComponentFields = Pick<
+  MealComponent,
+  "name" | "quantity" | "unit" | "estimated_grams_low" | "estimated_grams_high"
+>;
+
+// Saves one edited component and triggers a server-side AI recalculation of
+// just its nutrition (name/quantity/unit only — nutrition is never sent,
+// it's always derived). This is slower than a plain write (a real OpenAI
+// round trip), which is why it's one explicit "Save" action rather than
+// firing per field blur.
+export async function reestimateComponent(
+  recordId: string,
+  index: number,
+  fields: EditableComponentFields
+): Promise<MealAnalysis> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/food/records/${encodeURIComponent(recordId)}/components/${index}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    }
+  );
+
+  const body = await response.json().catch(() => null);
+
+  if (!response.ok || !body || body.success === false) {
+    const message = body && body.error ? body.error : "Couldn't save changes";
+    throw new Error(message);
+  }
+
+  return body.data as MealAnalysis;
+}

@@ -64,6 +64,24 @@ export const MealAnalysisSchema = z.object({
   disclaimer: z.string(),
 });
 
+// The client-editable subset of a component — name, quantity/unit, and the
+// grams range. `nutrition`/`confidence` are deliberately omitted: they're
+// always AI-derived (see reestimateComponent in food-analyzer.ts), never
+// something a client can submit directly.
+export const UpdateComponentFieldsSchema = MealComponentSchema.omit({
+  nutrition: true,
+  confidence: true,
+});
+
+// What the single-component recalculation call is expected to return: a
+// fresh nutrition estimate for the new portion, plus how confident that
+// estimate is — the same two fields RawMealAnalysisSchema's components
+// carry, just for one component in isolation.
+export const ComponentNutritionEstimateSchema = z.object({
+  nutrition: NutrientRangesSchema,
+  confidence: ConfidenceSchema,
+});
+
 // The shape the OpenAI response itself is validated against. It omits the
 // top-level `nutrition` entirely because the model is not asked for totals —
 // the prompt only has it estimate nutrition per component, and
@@ -78,3 +96,5 @@ export type NutrientRanges = z.infer<typeof NutrientRangesSchema>;
 export type NutrientKey = (typeof NUTRIENT_KEYS)[number];
 export type MealComponent = z.infer<typeof MealComponentSchema>;
 export type MealAnalysis = z.infer<typeof MealAnalysisSchema>;
+export type UpdateComponentFields = z.infer<typeof UpdateComponentFieldsSchema>;
+export type ComponentNutritionEstimate = z.infer<typeof ComponentNutritionEstimateSchema>;

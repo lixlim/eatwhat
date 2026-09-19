@@ -1,6 +1,7 @@
 import { NutritionRecord, NutritionSummary } from "../models/nutrition";
 import { MealAnalysis, MealComponent, Range } from "../ai/schemas";
 import { v4 as uuidv4 } from "uuid";
+import { computeDishNutrition, roundNutrientRanges } from "./nutrition-math";
 
 export class NutritionService {
   private records: Map<string, NutritionRecord> = new Map();
@@ -75,18 +76,26 @@ export class NutritionService {
     if (avgConfidenceScore >= 2.5) avgConfidence = "high";
     else if (avgConfidenceScore < 1.5) avgConfidence = "low";
 
-    const round = (range: Range): Range => ({
-      low: Math.round(range.low * 100) / 100,
-      high: Math.round(range.high * 100) / 100,
+    // Same rounding rule as everywhere else (calories: whole number, other
+    // nutrients: 2dp) — routed through roundNutrientRanges (keyed by the
+    // schema's nutrient keys) rather than a separate local round(), so this
+    // summary can't drift from the same rule components/dish totals use.
+    const rounded = roundNutrientRanges({
+      calories_kcal: totals.calories,
+      protein_g: totals.protein,
+      carbs_g: totals.carbs,
+      fat_g: totals.fat,
+      fibre_g: totals.fibre,
+      sodium_mg: totals.sodium,
     });
 
     return {
-      totalCalories: round(totals.calories),
-      totalProtein: round(totals.protein),
-      totalCarbs: round(totals.carbs),
-      totalFat: round(totals.fat),
-      totalFibre: round(totals.fibre),
-      totalSodium: round(totals.sodium),
+      totalCalories: rounded.calories_kcal,
+      totalProtein: rounded.protein_g,
+      totalCarbs: rounded.carbs_g,
+      totalFat: rounded.fat_g,
+      totalFibre: rounded.fibre_g,
+      totalSodium: rounded.sodium_mg,
       itemCount: records.length,
       avgConfidence,
     };
@@ -96,7 +105,28 @@ export class NutritionService {
     const record = this.records.get(id);
     if (!record) return undefined;
 
-    const updated: NutritionRecord = { ...record, components };
+    const updated: NutritionRecord = {
+      ...record,
+      components,
+      nutrition: computeDishNutrition(components),
+    };
+    this.records.set(id, updated);
+    return updated;
+  }
+
+  // Replaces a single component (after its nutrition has been re-estimated —
+  // see FoodAnalyzerService#reestimateComponent) and resums dish totals from
+  // the resulting array, same as updateComponents.
+  updateComponentAt(id: string, index: number, component: MealComponent): NutritionRecord | undefined {
+    const record = this.records.get(id);
+    if (!record || index < 0 || index >= record.components.length) return undefined;
+
+    const components = record.components.map((c, i) => (i === index ? component : c));
+    const updated: NutritionRecord = {
+      ...record,
+      components,
+      nutrition: computeDishNutrition(components),
+    };
     this.records.set(id, updated);
     return updated;
   }
