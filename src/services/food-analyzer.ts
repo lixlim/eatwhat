@@ -35,13 +35,17 @@ export class FoodAnalyzerService {
       // holistically by the model, so that each total always exactly matches
       // the sum of its parts (low-to-low, high-to-high).
       const nutrition = NUTRIENT_KEYS.reduce((totals, key) => {
-        totals[key] = rawValidated.components.reduce(
+        const sum = rawValidated.components.reduce(
           (sum, component) => ({
             low: sum.low + component.nutrition[key].low,
             high: sum.high + component.nutrition[key].high,
           }),
           { low: 0, high: 0 }
         );
+        totals[key] = {
+          low: Math.round(sum.low * 100) / 100,
+          high: Math.round(sum.high * 100) / 100,
+        };
         return totals;
       }, {} as NutrientRanges);
 

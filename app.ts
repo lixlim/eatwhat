@@ -1,9 +1,7 @@
 import "dotenv/config";
 import express, { Express } from "express";
 import multer from "multer";
-import swaggerUi from "swagger-ui-express";
 import foodRoutes from "./src/api/food.controller";
-import { swaggerSpec } from "./src/swagger";
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
@@ -24,9 +22,6 @@ const upload = multer({
     }
   },
 });
-
-// API docs
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use("/api/food", upload.single("image"), foodRoutes);

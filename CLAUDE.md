@@ -22,8 +22,7 @@ npm start        # node dist/app.js (run build first)
 There is no test suite configured (`npm test` is a stub that exits 1).
 
 Requires `.env` with `OPENAI_API_KEY` and optionally `PORT` (default 3000) — copy from
-`.env.example`. Server serves the web frontend from `public/` as static files, and API
-docs (Swagger UI, generated from the Zod schemas) at `/api-docs`.
+`.env.example`. Server serves the web frontend from `public/` as static files.
 
 ### Mobile (`mobile/`)
 
@@ -50,13 +49,14 @@ assuming an older API surface still applies.
 
 ### Zod schemas are the single source of truth
 
-Every data shape is defined once as a Zod schema and reused three ways: runtime
-validation (`.parse()`/`.safeParse()`), static TypeScript types (`z.infer<typeof X>`),
-and OpenAPI documentation (`registry.register(...)` / `registry.registerPath(...)`).
-This is why routes in [src/api/food.controller.ts](src/api/food.controller.ts) look
-more verbose than a bare Express handler — each one pairs a `registry.registerPath()`
-call (pure metadata, feeds [src/swagger.ts](src/swagger.ts) to build `/api-docs`) with
-the actual `router.*()` handler. When adding or changing an endpoint, keep both in sync.
+Every data shape is defined once as a Zod schema and reused two ways: runtime validation
+(`.parse()`/`.safeParse()`) and static TypeScript types (`z.infer<typeof X>`). There is
+no OpenAPI/Swagger layer generating docs from these schemas — that existed early on and
+was deliberately removed to keep [src/api/food.controller.ts](src/api/food.controller.ts)
+a plain Express router (`router.get/post/patch/delete(path, handler)`, no parallel
+metadata declaration per route to keep in sync by hand). If API documentation is needed
+again later, regenerating it from these same schemas is the natural approach, but it's
+not currently part of this codebase.
 
 Schema layering:
 - [src/ai/schemas.ts](src/ai/schemas.ts) — `MealAnalysisSchema` (what the OpenAI call
@@ -66,8 +66,6 @@ Schema layering:
 - [src/models/nutrition.ts](src/models/nutrition.ts) — extends `MealAnalysisSchema` with
   storage fields (`id`, `imageUrl`, `analyzedAt`) to form `NutritionRecordSchema`, plus
   `NutritionSummarySchema` for the aggregate endpoint.
-- [src/openapi-registry.ts](src/openapi-registry.ts) — the shared `OpenAPIRegistry`
-  instance every schema registers into, plus the common `ErrorSchema`.
 
 Nutrition values are ranges, not point estimates, throughout — reflected in the prompt,
 the schema, and `nutritionService.getSummary()`'s range-aware aggregation.
@@ -81,10 +79,15 @@ runs it through `MealAnalysisSchema.parse()` — never trusts the raw LLM output
 the schema just because the prompt asked for it) →
 [src/services/nutrition-service.ts](src/services/nutrition-service.ts) stores the record.
 
-Validation happens at the two actual boundaries only: client request bodies (e.g. the
-`PATCH /records/:id/components` handler `safeParse`s its body) and the OpenAI response.
-Internal service-to-service calls are not re-validated — the type system is trusted once
-data is inside the process.
+Validation happens at the two actual boundaries only: client request bodies (the
+`PATCH /records/:id/components` handler is the one place — it `safeParse`s its body
+against a local `UpdateComponentsBodySchema` built from `MealComponentSchema`; no other
+route in the controller takes a body worth validating) and the OpenAI response. Internal
+service-to-service calls are not re-validated — the type system is trusted once data is
+inside the process. Response bodies are sent via
+[src/api/respond.ts](src/api/respond.ts)'s `sendOk`/`sendMessage`/`sendError` — thin
+wrappers around the `{ success, ... }` envelope every route responds with, not schema
+validation.
 
 ### Storage is a plain in-memory Map
 

@@ -76,8 +76,8 @@ export class NutritionService {
     else if (avgConfidenceScore < 1.5) avgConfidence = "low";
 
     const round = (range: Range): Range => ({
-      low: Math.round(range.low * 10) / 10,
-      high: Math.round(range.high * 10) / 10,
+      low: Math.round(range.low * 100) / 100,
+      high: Math.round(range.high * 100) / 100,
     });
 
     return {

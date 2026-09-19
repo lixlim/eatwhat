@@ -1,34 +1,24 @@
 import { z } from "zod";
-import { registry } from "../openapi-registry";
 
-export const ConfidenceSchema = registry.register(
-  "Confidence",
-  z.enum(["low", "medium", "high"])
-);
+export const ConfidenceSchema = z.enum(["low", "medium", "high"]);
 
-export const RangeSchema = registry.register(
-  "Range",
-  z.object({
-    low: z.number(),
-    high: z.number(),
-  })
-);
+export const RangeSchema = z.object({
+  low: z.number(),
+  high: z.number(),
+});
 
 // Shared by the top-level `nutrition` totals and each component's own
 // nutrition breakdown — same six nutrients, same range shape, in both
 // places (see NUTRIENT_KEYS / food-analyzer.ts, which sums the latter into
 // the former).
-export const NutrientRangesSchema = registry.register(
-  "NutrientRanges",
-  z.object({
-    calories_kcal: RangeSchema,
-    protein_g: RangeSchema,
-    carbs_g: RangeSchema,
-    fat_g: RangeSchema,
-    fibre_g: RangeSchema,
-    sodium_mg: RangeSchema,
-  })
-);
+export const NutrientRangesSchema = z.object({
+  calories_kcal: RangeSchema,
+  protein_g: RangeSchema,
+  carbs_g: RangeSchema,
+  fat_g: RangeSchema,
+  fibre_g: RangeSchema,
+  sodium_mg: RangeSchema,
+});
 
 export const NUTRIENT_KEYS = [
   "calories_kcal",
@@ -39,50 +29,40 @@ export const NUTRIENT_KEYS = [
   "sodium_mg",
 ] as const;
 
-export const MealComponentSchema = registry.register(
-  "MealComponent",
-  z.object({
-    name: z.string(),
-    // Human-friendly portion, e.g. quantity=2, unit="pieces" -> "2 pieces".
-    // unit is free text (not a fixed list) chosen by the model, already
-    // inflected for quantity and including any size descriptor, e.g.
-    // "large bowl". Grams remain the source of truth for nutrition math.
-    quantity: z.number().nullable(),
-    unit: z.string().max(40).nullable().openapi({
-      example: "piece",
-      description:
-        "Free-text human-friendly unit (e.g. piece, wing, clove, large bowl) — not a fixed list.",
-    }),
-    estimated_grams_low: z.number().nullable(),
-    estimated_grams_high: z.number().nullable(),
-    // Per-component nutrition contribution. Required (not nullable): the
-    // top-level `nutrition` totals are computed by summing these across
-    // components (see RawMealAnalysisSchema / food-analyzer.ts), so every
-    // component must carry real figures for the totals to be accurate.
-    nutrition: NutrientRangesSchema,
-    confidence: ConfidenceSchema,
-  })
-);
+export const MealComponentSchema = z.object({
+  name: z.string(),
+  // Human-friendly portion, e.g. quantity=2, unit="pieces" -> "2 pieces".
+  // unit is free text (not a fixed list) chosen by the model, already
+  // inflected for quantity and including any size descriptor, e.g.
+  // "large bowl". Grams remain the source of truth for nutrition math.
+  quantity: z.number().nullable(),
+  unit: z.string().max(40).nullable(),
+  estimated_grams_low: z.number().nullable(),
+  estimated_grams_high: z.number().nullable(),
+  // Per-component nutrition contribution. Required (not nullable): the
+  // top-level `nutrition` totals are computed by summing these across
+  // components (see RawMealAnalysisSchema / food-analyzer.ts), so every
+  // component must carry real figures for the totals to be accurate.
+  nutrition: NutrientRangesSchema,
+  confidence: ConfidenceSchema,
+});
 
-export const MealAnalysisSchema = registry.register(
-  "MealAnalysis",
-  z.object({
-    dish_name: z.string(),
-    dish_name_local: z.string().nullable(),
+export const MealAnalysisSchema = z.object({
+  dish_name: z.string(),
+  dish_name_local: z.string().nullable(),
 
-    components: z.array(MealComponentSchema),
+  components: z.array(MealComponentSchema),
 
-    nutrition: NutrientRangesSchema,
+  nutrition: NutrientRangesSchema,
 
-    overall_confidence: ConfidenceSchema,
+  overall_confidence: ConfidenceSchema,
 
-    uncertainties: z.array(z.string()),
+  uncertainties: z.array(z.string()),
 
-    interpretation: z.string(),
+  interpretation: z.string(),
 
-    disclaimer: z.string(),
-  })
-);
+  disclaimer: z.string(),
+});
 
 // The shape the OpenAI response itself is validated against. It omits the
 // top-level `nutrition` entirely because the model is not asked for totals —

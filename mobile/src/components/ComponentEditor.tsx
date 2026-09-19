@@ -176,7 +176,9 @@ export function ComponentEditor({ recordId, initialComponents }: ComponentEditor
             placeholder="Component name"
             placeholderTextColor={colors.textMuted}
           />
-          <View style={styles.portionRow}>
+          <View
+            style={[styles.portionRow, openDropdownFor === index && styles.portionRowRaised]}
+          >
             {modes[index] === "unit" ? (
               <View style={styles.groupBox}>
                 <TextInput
@@ -270,7 +272,9 @@ export function ComponentEditor({ recordId, initialComponents }: ComponentEditor
           />
 
           <Text style={styles.fieldLabel}>Portion</Text>
-          <View style={styles.portionRow}>
+          <View
+            style={[styles.portionRow, openDropdownFor === "new" && styles.portionRowRaised]}
+          >
             {newMode === "unit" ? (
               <View style={styles.groupBox}>
                 <TextInput
@@ -396,6 +400,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    zIndex: 0,
+  },
+  portionRowRaised: {
+    zIndex: 30,
   },
   // A single bordered control that groups two or three related inputs
   // (quantity+unit, or grams low–high) instead of each having its own
@@ -451,6 +459,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 6,
     marginTop: 2,
+    zIndex: 0,
   },
   nutrientChip: {
     width: "31%",
@@ -571,6 +580,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+    zIndex: 0,
   },
   nutrientInputLabel: {
     fontSize: 13,
